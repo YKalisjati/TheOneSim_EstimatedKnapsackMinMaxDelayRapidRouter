@@ -7,22 +7,17 @@ package routing;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import routing.rapid.DelayEntry;
 import routing.rapid.DelayTable;
 import routing.rapid.MeetingEntry;
 
 import core.*;
-import java.text.DecimalFormat;
 import java.util.Iterator;
 import java.util.LinkedList;
-import movement.Path;
 import routing.community.Duration;
 
 /**
@@ -144,13 +139,13 @@ public class EstimateKnapsackBusTJRouter extends ActiveRouterForKnapsack {
             this.delayTable.dummyUpdateConnection(con);
 
             //Perhitungan Estimate Time Duration
-            if (!String.valueOf(getHost().toString().charAt(0)).equals("s")) {
-                int capacityOFKnapsack = 0;
-                Tuple<Double, Double> estimateTime = getEstimateTimeDuration(getHost(), otherHost);
+            if (!String.valueOf(getHost().toString().charAt(0)).equals("s")) { //Pengecekan apakah dia Sensor atau bukan
+                int capacityOFKnapsack = 0;                                    //Jika bukan, dilakukan proses pengiriman pesan
+                Tuple<Double, Double> estimateTime = getEstimateTimeDuration(getHost(), otherHost); //Nilai ETD transfer dari host yang sedang aktif dan host tujuan pengiriman
                 int tfSpeed = this.getTransferSpeed(getHost()) / bytes;
-                capacityOFKnapsack = getCapacityOFKnapsack(estimateTime.getValue(), tfSpeed);
-                this.retrictionPerPeer.put(otherHost, capacityOFKnapsack);
-                cekSyaratKnapsackSend(getHost(), otherHost);
+                capacityOFKnapsack = getCapacityOFKnapsack(estimateTime.getValue(), tfSpeed); //Perhitungan kapasitas knapsack yang dapat digunakan untuk proses pengiriman pesan : ET dan kecepatan transfer data dari host pengirim ke host tujuan
+                this.retrictionPerPeer.put(otherHost, capacityOFKnapsack); //Nilai kapasitas disimpan dalam Map (Batasan)
+                cekSyaratKnapsackSend(getHost(), otherHost); //Cek syarat untuk pengiriman pesan
             }
         } else {
             /* connection went down */
@@ -392,6 +387,7 @@ public class EstimateKnapsackBusTJRouter extends ActiveRouterForKnapsack {
         //if message was created successfully add the according delay table entry
         if (stat) {
             updateDelayTableEntry(m, getHost(), estimateDelay(m, getHost(), true), SimClock.getTime());
+//            System.out.println("PESAN BARU "+m.getId()+" di buat oleh "+getHost()+" ukuran "+m.getSize()+" Tujuan "+m.getTo());
         }
 
         return stat;
@@ -567,7 +563,7 @@ public class EstimateKnapsackBusTJRouter extends ActiveRouterForKnapsack {
             packetDelay = this.delayTable.getDelayEntryByMessageId(msg.getId()).getDelayOf(host);
         }
 
-        return packetDelay;
+        return packetDelay; //Nilai perkiraan delay dari Messages
     }
 
     private double computeRemainingTime(Message msg) {
@@ -586,7 +582,7 @@ public class EstimateKnapsackBusTJRouter extends ActiveRouterForKnapsack {
             }
         }
 
-        return remainingTime;
+        return remainingTime; //Sisa waktu untuk mengirim Messages
     }
 
     private double computeTransferTime(Message msg, DTNHost host) {
@@ -619,7 +615,7 @@ public class EstimateKnapsackBusTJRouter extends ActiveRouterForKnapsack {
             transferTime = meetingTime * Math.ceil(packetsSize / transferOpportunity);	// MX(i) = MXZ * ceil[b(i) / B]
         }
 
-        return transferTime;
+        return transferTime; //Waktu untuk transfer Messages
     }
 
     private double computePacketDelay(Message msg, DTNHost host, double remainingTime) {
@@ -634,23 +630,23 @@ public class EstimateKnapsackBusTJRouter extends ActiveRouterForKnapsack {
         timeSinceCreation = SimClock.getTime() - msg.getCreationTime();
         packetDelay = timeSinceCreation + expectedRemainingTime;
 
-        return packetDelay;
+        return packetDelay; //Nilai delay sebuah Messages
     }
 
     @Override
     public void update() {
         super.update();
-
+        //Cek sedang transfer atau tidak
         if (isTransferring() || !canStartTransfer()) {
             return;
         }
-
+        //Melakukan pertukaran pesan secara langsung
         // Try messages that can be delivered to final recipient
         if (exchangeDeliverableMessages() != null) {
             return;
         }
-
-        // Otherwise do RAPID-style message exchange
+        // Otherwise do RAPID-style message exchange 
+        // (Mengoptimalkan pengiriman pesan di lingkungan dengan mobilitas tinggi dan topologi jaringan yang dinamis)
         if (tryOtherMessages() != null) {
             return;
         }
@@ -662,6 +658,7 @@ public class EstimateKnapsackBusTJRouter extends ActiveRouterForKnapsack {
         if (String.valueOf(getHost().toString().charAt(0)).equals("s")) {
             this.deleteMessage(transferred.getId(), false);
         }
+//        System.out.println(String.valueOf(getHost().toString().charAt(0)).equals("d"));
     }
 
     private Tuple<Tuple<Message, Connection>, Double> tryOtherMessages() {
@@ -669,15 +666,14 @@ public class EstimateKnapsackBusTJRouter extends ActiveRouterForKnapsack {
 
         for (Connection con : getConnections()) {
             DTNHost other = con.getOtherNode(getHost());
-
             EstimateKnapsackBusTJRouter otherRouter = (EstimateKnapsackBusTJRouter) other.getRouter();
-
+            //Memeriksa apakah host tersebut sedang dalam proses mentransfer pesan atau tidak
             if (otherRouter.isTransferring()) {
                 continue; // skip hosts that are transferring
             }
-
+            //Memeriksa apakah sensor atau tidak
             if (String.valueOf(other.toString().charAt(0)).equals("s")) {
-                continue;
+                continue; // skip kalau sensor
             }
 
             if (String.valueOf(getHost().toString().charAt(0)).equals("s")) {
@@ -712,8 +708,9 @@ public class EstimateKnapsackBusTJRouter extends ActiveRouterForKnapsack {
         if (messages== null) {
             return null;
         }
-
+        //Mencoba mengirimkan pesan-pesan tersebut ke host penerima
         return tryTupleMessagesForConnected(messages);	// try to send messages
+//        return tryAllMessagesToAllConnections();
     }
 
     /**
@@ -725,8 +722,10 @@ public class EstimateKnapsackBusTJRouter extends ActiveRouterForKnapsack {
      * @return The tuple whose connection accepted the message or null if none
      * of the connections accepted the message that was meant for them.
      */
+    // Mencoba untuk mengirimkan setiap pesan pada list pesan yang belum terkirim ke setiap koneksi pada list koneksi yang tersedia
     private Tuple<Tuple<Message, Connection>, Double> tryTupleMessagesForConnected(
             List<Tuple<Tuple<Message, Connection>, Double>> tuples) {
+        //Memeriksa apakah kosong atau tidak
         if (tuples.size() == 0) {
             return null;
         }
@@ -734,7 +733,7 @@ public class EstimateKnapsackBusTJRouter extends ActiveRouterForKnapsack {
         for (Tuple<Tuple<Message, Connection>, Double> t : tuples) {
             Message m = (t.getKey()).getKey();
             Connection con = (t.getKey()).getValue();
-            if (startTransfer(m, con) == RCV_OK) {
+            if (startTransfer(m, con) == RCV_OK) { //Proses transfer pesan telah dimulai, dan method akan mengembalikan tuple tersebut sebagai hasil
                 return t;
             }
         }
@@ -778,12 +777,14 @@ public class EstimateKnapsackBusTJRouter extends ActiveRouterForKnapsack {
         List<Duration> list = getListDuration(nodes);
         Iterator<Duration> duration = list.iterator();
         double hasil = 0;
+        //Durasi dihitung dengan cara mengambil selisih antara waktu akhir dan waktu awal pada setiap objek Duration pada List
+        //lalu dijumlahkan dan dibagi dengan jumlah objek Duration pada List
         while (duration.hasNext()) {
             Duration d = duration.next();
             hasil += (d.getEnd() - d.getStart());
         }
         int avgDuration = (int) (hasil / list.size());
-        if (avgDuration == 0) {
+        if (avgDuration == 0) { //Jika hasilnya 0, maka nilai rata-rata akan diatur menjadi 1
             avgDuration = 1;
         }
         return avgDuration;
@@ -799,17 +800,22 @@ public class EstimateKnapsackBusTJRouter extends ActiveRouterForKnapsack {
     }
 
     public void cekSyaratKnapsackSend(DTNHost thisHost, DTNHost otherHost) {
+//        System.out.println(getSyaratKnapsack(thisHost, otherHost));
         if (getSyaratKnapsack(thisHost, otherHost)) {
-            getUtilityMsgToArrForSend(thisHost, otherHost);
-            knapsackSend(thisHost, otherHost);
+            getUtilityMsgToArrForSend(thisHost, otherHost); //mendapatkan nilai utilitas setiap pesan
+            knapsackSend(thisHost, otherHost); //mengirim pesan ke node tujuan menggunakan algoritma Knapsack
         } else {
+//            System.out.println("Msg :"+getMessageCollection().toString());
+//            System.out.println("Msg terpilih : " + this.tempMsgTerpilih.toString());
             this.tempMsgTerpilih.addAll(getMessageCollection());
         }
     }
 
     public boolean getSyaratKnapsack(DTNHost thisHost, DTNHost otherHost) {
         int retriction = getRetrictionForSend(thisHost, otherHost);
+//        System.out.println("Retriction " + thisHost + ":" + retriction);
         int isiBuffer = ((thisHost.getRouter().getBufferSize() - thisHost.getRouter().getFreeBufferSize()) / bytes);
+//        System.out.println("isiBuffer :" + isiBuffer);
         return isiBuffer > retriction;
     }
 
@@ -835,13 +841,22 @@ public class EstimateKnapsackBusTJRouter extends ActiveRouterForKnapsack {
         }
     }
 
+    /**
+     * Memilih pesan-pesan yang akan dikirim oleh host saat terhubung dengan host lain
+     * Fungsi metode ini adalah memilih pesan-pesan yang dapat ditransfer dan memberikan utilitas maksimum
+     * starts transferring or all tuples have been tried.
+     *
+     * @param thisHost dan otherHost 
+     */
     public void knapsackSend(DTNHost thisHost, DTNHost otherHost) {
-    List<Message> tempMsg = new ArrayList<>(this.getMessageCollection());
+    List<Message> tempMsg = new ArrayList<>(this.getMessageCollection()); //Membuat salinan dari semua pesan yang ada di thisHost dan menyimpan jumlah pesan dalam variabel jumlahMsg
     int jumlahMsg = tempMsg.size();
-    int restriction = this.getRetrictionForSend(thisHost, otherHost);
-
+    int restriction = this.getRetrictionForSend(thisHost, otherHost); //Menghitung batasan jumlah pesan yang dapat dikirim dari thisHost ke otherHost
+    
+    //Algoritma knapsack untuk memilih pesan-pesan yang akan dikirim
+    //Mengisi nilai-nilai di dalam array bestSolutionSend dgn membandingkan utilitas pesan (memilih nilai terbesar)
     double[][] bestSolutionSend = new double[jumlahMsg + 1][restriction + 1];
-
+    
     for (int i = 0; i <= jumlahMsg; i++) {
             for (int length = 0; length <= restriction; length++) {
                 if (i == 0 || length == 0) {
@@ -854,17 +869,18 @@ public class EstimateKnapsackBusTJRouter extends ActiveRouterForKnapsack {
                 }
             }
         }
-
+    //Setelah nilai bestSolutionSend dihitung, dikembalikan daftar pesan yang dipilih untuk dikirim sebagai LinkedList tempMsgTerpilih
     LinkedList<Message> tempMsgTerpilih = new LinkedList<>();
     int temp = restriction;
-
+    //Melakukan pencarian mundur melalui nilai-nilai array 
     for (int j = jumlahMsg; j >= 1; j--) {
         if (bestSolutionSend[j][temp] > bestSolutionSend[j - 1][temp]) {
             tempMsgTerpilih.addFirst(tempMsg.get(j - 1));
             temp = temp - this.lengthMsg.get(j - 1);
         }
-    }
-    this.tempMsgTerpilih = tempMsgTerpilih;
+    } //Pesan dipilih dimasukkan ke tempMsgTerpilih, dan MessageRouter dapat mengambil nilai tersebut
+    this.tempMsgTerpilih = tempMsgTerpilih; //tempMsgTerpilih disimpan dalam variabel this.tempMsgTerpilih untuk digunakan dalam metode lain
+//    System.out.println("tempMsgTerpilih : " + tempMsgTerpilih);
 }
 
 
@@ -895,9 +911,15 @@ public class EstimateKnapsackBusTJRouter extends ActiveRouterForKnapsack {
         for (int j = jumlahMsg; j >= 1; j--) {
             if (bestSolutionDrop[j][temp] > bestSolutionDrop[j - 1][temp]) {
                 temp = temp - this.lengthMsgDrop.get(j - 1);
-            } else {
-                this.tempMsgLowersUtil.add(this.tempMsgDrop.get(j - 1));
+            } else { //Edit utk menghindari penghapusan pesan yang sedang dikirim
+                Message tempMsg = this.tempMsgDrop.get(j - 1);
+                if (!tempMsg.equals(m) && isSending(tempMsg.getId())) {
+                    continue;
+                }
+                this.tempMsgLowersUtil.add(tempMsg);
             }
+//                this.tempMsgLowersUtil.add(this.tempMsgDrop.get(j - 1));
+//            }
         }
     }
 
