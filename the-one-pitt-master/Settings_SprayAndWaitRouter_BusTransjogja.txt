@@ -3,7 +3,7 @@
 #
 
 ## Scenario settings
-Scenario.name = scenario-TJ-%%Group.router%%-AVERAGE_DELAY
+Scenario.name = scenario-TJ-%%Group.router%%
 #Scenario.name = scenario-TJ-%%Group.router%%-MISSED_DEADLINES
 #Scenario.name = scenario-TJ-%%Group.router%%-MAXIMUM_DELAY
 Scenario.simulateConnections = true
@@ -60,10 +60,7 @@ Group.movementModel = MapRouteMovementWithStop
 #EpidemicBusTjRouter
 #RapidBusTjRouter
 
-#Group.router = RapidRouter
-Group.router = EstimateKnapsackBusTJRouter
-#Group.router = DecisionEngineBusTjRouter
-#DecisionEngineBusTjRouter.decisionEngine = EpidemicBusTjRouter
+Group.router = SprayAndWaitRouter
 
 Group.bufferSize = 40M
 Group.waitTime = 0, 0
@@ -74,7 +71,7 @@ Group.interface2 = w802-11bInterface
 # Kecepata Bus Transjogja
 Group.speed = 11.1, 11.1
 # Message TTL of 300 minutes (5 jam)
-Group.msgTtl = 20
+Group.msgTtl = 60
 Group.stopFile = data/CoordStopPoint.txt
 #Group.stopFile = data/Stop3Points.txt
 Group.stopTime = 5, 30
@@ -540,21 +537,14 @@ MapBasedMovement.mapFile1 = data/JalurTJ.wkt
 ## Reports - all report names have to be valid report classes
 
 # how many reports to load
-Report.nrofReports = 8
+Report.nrofReports = 1
 # length of the warm up period (simulated seconds)
 Report.warmup = 0
 # default directory of reports (can be overridden per Report with output setting)
-Report.reportDir = reports/Estimated_Rapid_Knapsack
+Report.reportDir = reports/SprayAndWaitBus
 # Report classes to load
 
 Report.report1 = MessageStatsReport
-Report.report2 = LatencyPerContactReport
-Report.report3 = MessageDeliveredPerContactReport
-Report.report4 = PercentageMessageDeliveredPerContactReport
-Report.report5 = OverheadPerContactReport
-Report.report6 = DropPerContactReport
-Report.report7 = BufferOccupancyPerContact
-Report.report8 = DelayPerMessageReport
 
 ## Default settings for some routers settings
 ProphetRouter.secondsInTimeUnit = 30

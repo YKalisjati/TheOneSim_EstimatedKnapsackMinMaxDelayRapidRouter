@@ -3,14 +3,15 @@
 #
 
 ## Scenario settings
-Scenario.name = scenario-TJ-%%Group.router%%-AVERAGE_DELAY
+#Scenario.name = scenario_TJ_fix_4_23M_Bus_3M_SensorL_3M_SensorM_256k_SizeL_1Hrs_M_5Hrs_L
+#Scenario.name = scenario-TJ-%%Group.router%%-AVERAGE_DELAY
 #Scenario.name = scenario-TJ-%%Group.router%%-MISSED_DEADLINES
-#Scenario.name = scenario-TJ-%%Group.router%%-MAXIMUM_DELAY
+Scenario.name = scenario-TJ-%%Group.router%%-MAXIMUM_DELAY
 Scenario.simulateConnections = true
 Scenario.updateInterval = 0.1
 # 43200 == 12h
 # 64800 == 18h
-#  7200 == 2h
+#  7200 ==  2h
 Scenario.endTime = 64800
 
 ## Interface-specific settings:
@@ -27,7 +28,7 @@ w802-11pInterface.type = SimpleBroadcastInterface
 w802-11pInterface.transmitSpeed = 750k
 w802-11pInterface.transmitRange = 100
 
-# interface for 802.11b link profile
+# Sensor interface for 802.11b link profile
 w802-11bInterface.type = SimpleBroadcastInterface
 w802-11bInterface.transmitSpeed = 375k
 w802-11bInterface.transmitRange = 20
@@ -60,8 +61,9 @@ Group.movementModel = MapRouteMovementWithStop
 #EpidemicBusTjRouter
 #RapidBusTjRouter
 
-#Group.router = RapidRouter
-Group.router = EstimateKnapsackBusTJRouter
+Group.router = EpidemicRouter
+#Group.router = RapidKnapsackBusTjRouter
+#Group.router = EstimateKnapsackBusTJRouter
 #Group.router = DecisionEngineBusTjRouter
 #DecisionEngineBusTjRouter.decisionEngine = EpidemicBusTjRouter
 
@@ -71,10 +73,10 @@ Group.nrofInterfaces = 2
 Group.interface1 = w802-11pInterface
 Group.interface2 = w802-11bInterface
 
-# Kecepata Bus Transjogja
-Group.speed = 11.1, 11.1
-# Message TTL of 300 minutes (5 jam)
-Group.msgTtl = 20
+# Kecepatan Bus Transjogja
+Group.speed = 8.3, 8.3
+# Message TTL of 300 minutes (5 hours)
+Group.msgTtl = 60
 Group.stopFile = data/CoordStopPoint.txt
 #Group.stopFile = data/Stop3Points.txt
 Group.stopTime = 5, 30
@@ -515,7 +517,7 @@ Events.nrof = 1
 Events1.class = MessageEventGeneratorBusTJ
 # (following settings are specific for the MessageEventGenerator class)
 # Creation interval in seconds (one new message every 25 to 35 seconds)
-Events1.interval = 1800, 1800
+Events1.interval = 300,300
 # Message sizes (500kB - 1MB)
 Events1.size = 100k,500k
 # range of message source/destination addresses
@@ -540,11 +542,11 @@ MapBasedMovement.mapFile1 = data/JalurTJ.wkt
 ## Reports - all report names have to be valid report classes
 
 # how many reports to load
-Report.nrofReports = 8
+Report.nrofReports = 11
 # length of the warm up period (simulated seconds)
 Report.warmup = 0
 # default directory of reports (can be overridden per Report with output setting)
-Report.reportDir = reports/Estimated_Rapid_Knapsack
+Report.reportDir = reports/BusTjBaru/AutoCreateM300sPerSensorTTL60range100/
 # Report classes to load
 
 Report.report1 = MessageStatsReport
@@ -554,7 +556,10 @@ Report.report4 = PercentageMessageDeliveredPerContactReport
 Report.report5 = OverheadPerContactReport
 Report.report6 = DropPerContactReport
 Report.report7 = BufferOccupancyPerContact
-Report.report8 = DelayPerMessageReport
+Report.report8 = DistanceDelayReport
+Report.report9 = DelayPerMessageReport
+Report.report10 = TotalLatencyPerContactReport
+Report.report11 = MessageDelayReport
 
 ## Default settings for some routers settings
 ProphetRouter.secondsInTimeUnit = 30

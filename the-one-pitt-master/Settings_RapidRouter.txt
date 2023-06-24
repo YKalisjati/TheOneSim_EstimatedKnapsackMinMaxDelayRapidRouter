@@ -60,10 +60,7 @@ Group.movementModel = MapRouteMovementWithStop
 #EpidemicBusTjRouter
 #RapidBusTjRouter
 
-#Group.router = RapidRouter
-Group.router = EstimateKnapsackBusTJRouter
-#Group.router = DecisionEngineBusTjRouter
-#DecisionEngineBusTjRouter.decisionEngine = EpidemicBusTjRouter
+Group.router = RapidRouter
 
 Group.bufferSize = 40M
 Group.waitTime = 0, 0
@@ -544,7 +541,7 @@ Report.nrofReports = 8
 # length of the warm up period (simulated seconds)
 Report.warmup = 0
 # default directory of reports (can be overridden per Report with output setting)
-Report.reportDir = reports/Estimated_Rapid_Knapsack
+Report.reportDir = reports/RapidRouter
 # Report classes to load
 
 Report.report1 = MessageStatsReport

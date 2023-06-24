@@ -60,10 +60,7 @@ Group.movementModel = MapRouteMovementWithStop
 #EpidemicBusTjRouter
 #RapidBusTjRouter
 
-#Group.router = RapidRouter
-Group.router = EstimateKnapsackBusTJRouter
-#Group.router = DecisionEngineBusTjRouter
-#DecisionEngineBusTjRouter.decisionEngine = EpidemicBusTjRouter
+Group.router = RapidBusTJRouter
 
 Group.bufferSize = 40M
 Group.waitTime = 0, 0
@@ -74,7 +71,7 @@ Group.interface2 = w802-11bInterface
 # Kecepata Bus Transjogja
 Group.speed = 11.1, 11.1
 # Message TTL of 300 minutes (5 jam)
-Group.msgTtl = 20
+Group.msgTtl = 60
 Group.stopFile = data/CoordStopPoint.txt
 #Group.stopFile = data/Stop3Points.txt
 Group.stopTime = 5, 30
@@ -544,7 +541,7 @@ Report.nrofReports = 8
 # length of the warm up period (simulated seconds)
 Report.warmup = 0
 # default directory of reports (can be overridden per Report with output setting)
-Report.reportDir = reports/Estimated_Rapid_Knapsack
+Report.reportDir = reports/RapidBus
 # Report classes to load
 
 Report.report1 = MessageStatsReport
