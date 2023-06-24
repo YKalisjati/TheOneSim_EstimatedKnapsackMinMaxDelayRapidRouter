@@ -80,8 +80,8 @@ public class EstimateKnapsackBusTJRouter extends ActiveRouterForKnapsack {
     }
 
     @Override
-    public void initialize(DTNHost host, List<MessageListener> mListeners) {
-        super.initialize(host, mListeners);
+    public void init(DTNHost host, List<MessageListener> mListeners) {
+        super.init(host, mListeners);
         delayTable = new DelayTable(host);
 //        System.out.println(host);
     }

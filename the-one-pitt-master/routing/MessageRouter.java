@@ -27,6 +27,7 @@ import core.Tuple;
  * Superclass for message routers.
  */
 public abstract class MessageRouter {
+    
 	/** Message buffer size -setting id ({@value}). Integer value in bytes.*/
 	public static final String B_SIZE_S = "bufferSize";
 	/**
@@ -51,6 +52,8 @@ public abstract class MessageRouter {
 	public static final int Q_MODE_RANDOM = 1;
 	/** Setting value for FIFO queue mode */
 	public static final int Q_MODE_FIFO = 2;
+        /** Setting value for Utility queue mode */
+        public static final int Q_MODE_UTILITY = 3;
 	
 	/** Receive return value for OK */
 	public static final int RCV_OK = 0;
@@ -66,8 +69,8 @@ public abstract class MessageRouter {
 	public static final int DENIED_UNSPECIFIED = -999;
 	
 	public static final int DENIED_DELIVERED = -4;
-	public static final int DENIED_ALREADY_IN_VR = -5;
-	public static final int DENIED_CHECKIN = -6;
+//	public static final int DENIED_ALREADY_IN_VR = -5;
+//	public static final int DENIED_CHECKIN = -6;
 	
 	protected List<MessageListener> mListeners;
 	/** The messages being transferred with msgID_hostName keys */
@@ -86,7 +89,7 @@ public abstract class MessageRouter {
 	private int sendQueueMode;
 
 	/** applications attached to the host */
-	private HashMap<String, Collection<Application>>	applications = null;
+	private HashMap<String, Collection<Application>> applications = null;
 	
 	/**
 	 * Constructor. Creates a new message router based on the settings in
@@ -125,12 +128,13 @@ public abstract class MessageRouter {
 	 * @param host The host this router is in
 	 * @param mListeners The message listeners
 	 */
-	public void initialize(DTNHost host, List<MessageListener> mListeners) {
+	public void init(DTNHost host, List<MessageListener> mListeners) {
 		this.incomingMessages = new HashMap<String, Message>();
 		this.messages = new HashMap<String, Message>();
 		this.deliveredMessages = new HashMap<String, Message>();
 		this.mListeners = mListeners;
 		this.host = host;
+                System.setProperty("java.util.Arrays.useLegacyMergeSort", "true");
 	}
 	
 	/**
@@ -506,6 +510,38 @@ public abstract class MessageRouter {
 				}
 			});
 			break;
+                case Q_MODE_UTILITY:
+                Collections.sort(list, new Comparator() {
+                    @Override
+                    public int compare(Object o1, Object o2) {
+                        double utility1;
+                        double utility2;
+                        Message m1, m2;
+
+                        if (o1 instanceof Tuple) {
+                            m1 = ((Tuple<Message, Connection>) o1).getKey();
+                            m2 = ((Tuple<Message, Connection>) o2).getKey();
+                        } else if (o1 instanceof Message) {
+                            m1 = (Message) o1;
+                            m2 = (Message) o2;
+                        } else {
+                            throw new SimError("Invalid type of objects in "
+                                    + "the list");
+                        }
+
+                        utility1 = (double) m1.getProperty("utility");
+                        utility2 = (double) m2.getProperty("utility");
+
+                        if (utility2 - utility1 == 0) {
+                            return 0;
+                        } else if (utility2 - utility1 < 0) {
+                            return -1;
+                        } else {
+                            return 1;
+                        }
+                    }
+                });
+                break;
 		/* add more queue modes here */
 		default:
 			throw new SimError("Unknown queue mode " + sendQueueMode);
@@ -533,6 +569,17 @@ public abstract class MessageRouter {
 				return 0;
 			}
 			return (diff < 0 ? -1 : 1);
+                case Q_MODE_UTILITY:
+                double utility1 = (double) m1.getProperty("utility");
+                double utility2 = (double) m2.getProperty("utility");
+
+                if (utility2 - utility1 == 0) {
+                    return 0;
+                } else if (utility2 - utility1 < 0) {
+                    return -1;
+                } else {
+                    return 1;
+                }
 		/* add more queue modes here */
 		default:
 			throw new SimError("Unknown queue mode " + sendQueueMode);
@@ -550,8 +597,8 @@ public abstract class MessageRouter {
 		RoutingInfo delivered = new RoutingInfo(this.deliveredMessages.size() +
 				" delivered message(s)");
 		
-		//RoutingInfo cons = new RoutingInfo(host.getConnections().size() +
-		RoutingInfo cons = new RoutingInfo(host.getConnectionCount() +
+		RoutingInfo cons = new RoutingInfo(host.getConnections().size() +
+//		RoutingInfo cons = new RoutingInfo(host.getConnectionCount() +
 			" connection(s)");
 				
 		ri.addMoreInfo(incoming);
@@ -616,7 +663,7 @@ public abstract class MessageRouter {
 	 * settings as this router but empty buffers and routing tables.
 	 * @return The replicate
 	 */
-	//public abstract MessageRouter replicate();
+	public abstract MessageRouter replicate();
 	
 	/**
 	 * Returns a String presentation of this router
@@ -627,6 +674,4 @@ public abstract class MessageRouter {
 			this.getHost().toString() + " with " + getNrofMessages() 
 			+ " messages";
 	}
-	
-	public abstract MessageRouter replicate();
 }

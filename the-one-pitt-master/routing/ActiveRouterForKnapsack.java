@@ -23,6 +23,7 @@ import java.util.LinkedList;
  * Superclass of active routers. Contains convenience methods (e.g.
  * {@link #getOldestMessage(boolean)}) and watching of sending connections (see
  * {@link #update()}).
+ * @author Kalis
  */
 public abstract class ActiveRouterForKnapsack extends MessageRouter {
 
@@ -83,8 +84,8 @@ public abstract class ActiveRouterForKnapsack extends MessageRouter {
     }
 
     @Override
-    public void initialize(DTNHost host, List<MessageListener> mListeners) {
-        super.initialize(host, mListeners);
+    public void init(DTNHost host, List<MessageListener> mListeners) {
+        super.init(host, mListeners);
         this.sendingConnections = new ArrayList<Connection>(1);
         this.lastTtlCheck = 0;
     }
