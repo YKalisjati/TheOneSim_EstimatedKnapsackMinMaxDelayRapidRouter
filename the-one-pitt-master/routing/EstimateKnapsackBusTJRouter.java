@@ -7,22 +7,28 @@ package routing;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import routing.rapid.DelayEntry;
 import routing.rapid.DelayTable;
 import routing.rapid.MeetingEntry;
 
 import core.*;
+import java.text.DecimalFormat;
 import java.util.Iterator;
 import java.util.LinkedList;
+import movement.Path;
+import static routing.MessageRouter.RCV_OK;
 import routing.community.Duration;
 
 /**
  *
- * @author asus
+ * @author Kalis, Universitas Sanata Dharma
  */
 public class EstimateKnapsackBusTJRouter extends ActiveRouterForKnapsack {
     // timestamp for meeting a host in seconds
@@ -32,7 +38,7 @@ public class EstimateKnapsackBusTJRouter extends ActiveRouterForKnapsack {
     // minimizing maximum delay)
     private Map<Integer, DTNHost> hostMapping;
 
-    private final UtilityAlgorithm ALGORITHM = UtilityAlgorithm.MAXIMUM_DELAY;
+    private final UtilityAlgorithm ALGORITHM = UtilityAlgorithm.AVERAGE_DELAY;
     private static final double INFINITY = 99999;
 
     // interval to verify ongoing connections in seconds
@@ -842,48 +848,53 @@ public class EstimateKnapsackBusTJRouter extends ActiveRouterForKnapsack {
     }
 
     /**
-     * Memilih pesan-pesan yang akan dikirim oleh host saat terhubung dengan host lain
-     * Fungsi metode ini adalah memilih pesan-pesan yang dapat ditransfer dan memberikan utilitas maksimum
-     * starts transferring or all tuples have been tried.
+     * Melakukan proses knapsack untuk menentukan pesan mana yang akan dikirim saat melakukan transfer data.
+     * Metode ini mengimplementasikan algoritma knapsack 0/1 dengan pendekatan pemrograman dinamis.
+     * Pesan-pesan yang memiliki utilitas tinggi akan dipilih untuk dikirimkan berdasarkan kapasitas knapsack yang tersedia.
      *
-     * @param thisHost dan otherHost 
+     * @param thisHost   Host pengirim
+     * @param otherHost  Host penerima
      */
     public void knapsackSend(DTNHost thisHost, DTNHost otherHost) {
-    List<Message> tempMsg = new ArrayList<>(this.getMessageCollection()); //Membuat salinan dari semua pesan yang ada di thisHost dan menyimpan jumlah pesan dalam variabel jumlahMsg
-    int jumlahMsg = tempMsg.size();
-    int restriction = this.getRetrictionForSend(thisHost, otherHost); //Menghitung batasan jumlah pesan yang dapat dikirim dari thisHost ke otherHost
-    
-    //Algoritma knapsack untuk memilih pesan-pesan yang akan dikirim
-    //Mengisi nilai-nilai di dalam array bestSolutionSend dgn membandingkan utilitas pesan (memilih nilai terbesar)
-    double[][] bestSolutionSend = new double[jumlahMsg + 1][restriction + 1];
-    
-    for (int i = 0; i <= jumlahMsg; i++) {
-            for (int length = 0; length <= restriction; length++) {
+        this.tempMsg.addAll(this.getMessageCollection());
+        int jumlahMsg = 0;
+        int retriction = 0;
+        jumlahMsg = this.tempMsg.size();
+        retriction = this.getRetrictionForSend(thisHost, otherHost);
+        double[][] bestSolutionSend = new double[jumlahMsg + 1][retriction + 1];
+
+        // Inisialisasi tabel solusi dengan nilai 0
+        for (int i = 0; i <= jumlahMsg; i++) {
+            for (int length = 0; length <= retriction; length++) {
                 if (i == 0 || length == 0) {
                     bestSolutionSend[i][length] = 0;
                 } else if (this.lengthMsg.get(i - 1) <= length) {
+                    // Jika panjang pesan lebih kecil atau sama dengan kapasitas knapsack yang tersisa, pilih pesan dengan utilitas maksimum
                     bestSolutionSend[i][length] = Math.max(bestSolutionSend[i - 1][length],
                             this.utilityMsg.get(i - 1) + bestSolutionSend[i - 1][length - this.lengthMsg.get(i - 1)]);
                 } else {
+                    // Jika panjang pesan lebih besar dari kapasitas knapsack yang tersisa, lewati pesan ini
                     bestSolutionSend[i][length] = bestSolutionSend[i - 1][length];
                 }
             }
         }
-    //Setelah nilai bestSolutionSend dihitung, dikembalikan daftar pesan yang dipilih untuk dikirim sebagai LinkedList tempMsgTerpilih
-    LinkedList<Message> tempMsgTerpilih = new LinkedList<>();
-    int temp = restriction;
-    //Melakukan pencarian mundur melalui nilai-nilai array 
-    for (int j = jumlahMsg; j >= 1; j--) {
-        if (bestSolutionSend[j][temp] > bestSolutionSend[j - 1][temp]) {
-            tempMsgTerpilih.addFirst(tempMsg.get(j - 1));
-            temp = temp - this.lengthMsg.get(j - 1);
+        // Mengumpulkan pesan-pesan yang akan dikirim berdasarkan solusi terbaik
+        int temp = retriction;
+        for (int j = jumlahMsg; j >= 1; j--) {
+            if (bestSolutionSend[j][temp] > bestSolutionSend[j - 1][temp]) {
+                this.tempMsgTerpilih.add(this.tempMsg.get(j - 1));
+                temp = temp - this.lengthMsg.get(j - 1);
+            }
         }
-    } //Pesan dipilih dimasukkan ke tempMsgTerpilih, dan MessageRouter dapat mengambil nilai tersebut
-    this.tempMsgTerpilih = tempMsgTerpilih; //tempMsgTerpilih disimpan dalam variabel this.tempMsgTerpilih untuk digunakan dalam metode lain
-//    System.out.println("tempMsgTerpilih : " + tempMsgTerpilih);
-}
+    }
 
-
+    /**
+     * Melakukan proses knapsack untuk menentukan pesan mana yang akan dijatuhkan (dropped) saat kapasitas buffer terbatas.
+     * Metode ini mengimplementasikan algoritma knapsack 0/1 dengan pendekatan pemrograman dinamis.
+     * Pesan-pesan yang memiliki utilitas rendah akan dijatuhkan terlebih dahulu untuk memberikan ruang bagi pesan dengan utilitas yang lebih tinggi.
+     *
+     * @param m Pesan yang akan ditambahkan ke daftar pesan yang dipertimbangkan saat knapsack
+     */
     public void knapsackDrop(Message m) {
         this.tempMsgDrop.addAll(this.getMessageCollection());
         this.tempMsgDrop.add(m);
@@ -894,32 +905,30 @@ public class EstimateKnapsackBusTJRouter extends ActiveRouterForKnapsack {
         int bufferSize = getHost().getRouter().getBufferSize() / bytes; //in kiloBytes
         retriction = bufferSize;
         double[][] bestSolutionDrop = new double[jumlahMsg + 1][retriction + 1];
-
+        
+        // Inisialisasi tabel solusi dengan nilai 0
         for (int i = 0; i <= jumlahMsg; i++) {
             for (int length = 0; length <= retriction; length++) {
                 if (i == 0 || length == 0) {
                     bestSolutionDrop[i][length] = 0;
                 } else if (this.lengthMsgDrop.get(i - 1) <= length) {
+                    // Jika panjang pesan lebih kecil atau sama dengan panjang sisa buffer, pilih pesan dengan utilitas maksimum
                     bestSolutionDrop[i][length] = Math.max(bestSolutionDrop[i - 1][length],
                             this.utilityMsgDrop.get(i - 1) + bestSolutionDrop[i - 1][length - this.lengthMsgDrop.get(i - 1)]);
                 } else {
+                    // Jika panjang pesan lebih besar dari panjang sisa buffer, lewati pesan ini
                     bestSolutionDrop[i][length] = bestSolutionDrop[i - 1][length];
                 }
             }
         }
+        // Mengumpulkan pesan-pesan yang akan di-drop berdasarkan solusi terbaik
         int temp = retriction;
         for (int j = jumlahMsg; j >= 1; j--) {
             if (bestSolutionDrop[j][temp] > bestSolutionDrop[j - 1][temp]) {
                 temp = temp - this.lengthMsgDrop.get(j - 1);
-            } else { //Edit utk menghindari penghapusan pesan yang sedang dikirim
-                Message tempMsg = this.tempMsgDrop.get(j - 1);
-                if (!tempMsg.equals(m) && isSending(tempMsg.getId())) {
-                    continue;
-                }
-                this.tempMsgLowersUtil.add(tempMsg);
+            } else {
+                this.tempMsgLowersUtil.add(this.tempMsgDrop.get(j - 1));
             }
-//                this.tempMsgLowersUtil.add(this.tempMsgDrop.get(j - 1));
-//            }
         }
     }
 
@@ -949,7 +958,15 @@ public class EstimateKnapsackBusTJRouter extends ActiveRouterForKnapsack {
         return true;
     }
 
-   //method hitung Sudut Vektor return nilai radiant
+    
+    /**
+    * Menghitung sudut vektor antara dua koordinat.
+    *
+    * @param now  Koordinat saat ini
+    * @param next Koordinat berikutnya
+    * @return Nilai sudut dalam radian
+    */
+    //method hitung Sudut Vektor return nilai radiant
     public double hitungSudut(Coord now, Coord next) {
         double x = Math.abs(next.getX() - now.getX());
         double y = Math.abs(next.getY() - now.getY());
@@ -957,60 +974,89 @@ public class EstimateKnapsackBusTJRouter extends ActiveRouterForKnapsack {
         return Math.atan(y / x);
     }
 
+    /**
+    * Menghitung kecepatan vektor dalam sumbu X.
+    *
+    * @param speed Kecepatan vektor
+    * @param sudut Sudut vektor dalam radian
+    * @return Kecepatan vektor dalam sumbu X
+    */
     //method hitung vector speedX (ux)
     public double speedX(double speed, double sudut) {
-        return Math.cos(sudut) * speed;
+        //return Math.cos(sudut) * speed;
+        return Math.cos(sudut) * Math.abs(speed);
     }
 
+    /**
+    * Menghitung kecepatan vektor dalam sumbu Y.
+    *
+    * @param speed Kecepatan vektor
+    * @param sudut Sudut vektor dalam radian
+    * @return Kecepatan vektor dalam sumbu Y
+    */
     //method hitung vector speedY (uy)
     public double speedY(double speed, double sudut) {
-        return Math.sin(sudut) * speed;
+        //return Math.sin(sudut) * speed;
+        return Math.sin(sudut) * Math.abs(speed);
     }
 
+    /**
+    * Mengestimasi durasi waktu yang dibutuhkan untuk transfer data antara dua host.
+    *
+    * @param thisHost   Host pengirim
+    * @param otherHost Host penerima
+    * @return Tuple berisi perkiraan waktu minimum dan maksimum yang dibutuhkan
+    */
     public Tuple<Double, Double> getEstimateTimeDuration(DTNHost thisHost, DTNHost otherHost) {
-        Tuple<Double, Double> estimate;
-        Coord thisNextWaypoint;
-        double uxThis, uyThis, uxOther, uyOther;
+    // Mendapatkan koordinat berikutnya dari pergerakan host pengirim dan penerima
+    Coord thisNextWaypoint;
+    double uxThis, uyThis, uxOther, uyOther;
 
-        try {
-            thisNextWaypoint = thisHost.getMovement().getPath().getNextWaypoint();
-        } catch (Exception e) {
-            thisNextWaypoint = thisHost.getLocation();
-        }
-
-        Coord otherNextWaypoint;
-
-        try {
-            otherNextWaypoint = otherHost.getMovement().getPath().getNextWaypoint();
-        } catch (Exception e) {
-            otherNextWaypoint = otherHost.getLocation();
-        }
-        
-        //getSudut
-        double sudutThis = hitungSudut(thisHost.getLocation(), thisNextWaypoint);
-        double sudutOther = hitungSudut(otherHost.getLocation(), otherNextWaypoint);
-
-        //get Vektor
-        uxThis = speedX(thisHost.getMovement().getPath().getSpeed(), sudutThis);
-        uyThis = speedY(thisHost.getMovement().getPath().getSpeed(), sudutThis);
-        uxOther = speedX(otherHost.getMovement().getPath().getSpeed(), sudutOther);
-        uyOther = speedY(otherHost.getMovement().getPath().getSpeed(), sudutOther);
-
-        //hitung delta VelocityVector
-        double deltaUX = uxThis - uxOther;
-        double deltaUY = uyThis - uyOther;
-        double deltaX = thisHost.getLocation().getX() - otherHost.getLocation().getX();
-        double deltaY = thisHost.getLocation().getY() - otherHost.getLocation().getY();
-        double r = thisHost.getInterfaces().get(0).getTransmitRange();
-        double l1 = 1 / (Math.pow(deltaUX, 2) + Math.pow(deltaUY, 2));
-        double l2 = (0.0 - (deltaX * deltaUX)) - (deltaY * deltaUY);
-        double l3 = Math.pow(r, 2) * ((Math.pow(deltaUX, 2) + Math.pow(deltaUY, 2))); //hasilnya NaN (Not a Number)
-        double l4 = Math.pow(((deltaX * deltaUY) - (deltaY * deltaUX)), 2);
-        double l5 = l3 - l4;
-        double max = l1 * (l2 + Math.sqrt(l5));
-        double min = l1 * (l2 - Math.sqrt(l5));
-        return estimate = new Tuple<Double, Double>(min, max);
+    try {
+        thisNextWaypoint = thisHost.getMovement().getPath().getNextWaypoint();
+    } catch (Exception e) {
+        thisNextWaypoint = thisHost.getLocation();
     }
+
+    Coord otherNextWaypoint;
+
+    try {
+        otherNextWaypoint = otherHost.getMovement().getPath().getNextWaypoint();
+    } catch (Exception e) {
+        otherNextWaypoint = otherHost.getLocation();
+    }
+
+    // get sudut vektor menggunakan atan2
+    double sudutThis = Math.atan2(thisNextWaypoint.getY() - thisHost.getLocation().getY(), thisNextWaypoint.getX() - thisHost.getLocation().getX());
+    double sudutOther = Math.atan2(otherNextWaypoint.getY() - otherHost.getLocation().getY(), otherNextWaypoint.getX() - otherHost.getLocation().getX());
+
+    // get vektor speedX dan speedY
+    // Menghitung vektor speedX dan speedY menggunakan method speedX dan speedY
+    uxThis = speedX(thisHost.getMovement().getPath().getSpeed(), sudutThis);
+    uyThis = speedY(thisHost.getMovement().getPath().getSpeed(), sudutThis);
+    uxOther = speedX(otherHost.getMovement().getPath().getSpeed(), sudutOther);
+    uyOther = speedY(otherHost.getMovement().getPath().getSpeed(), sudutOther);
+
+    // Menghitung delta VelocityVector dan variabel lainnya
+    double deltaUX = uxThis - uxOther;
+    double deltaUY = uyThis - uyOther;
+    double deltaX = thisHost.getLocation().getX() - otherHost.getLocation().getX();
+    double deltaY = thisHost.getLocation().getY() - otherHost.getLocation().getY();
+    double r = thisHost.getInterfaces().get(0).getTransmitRange();
+    double l1 = 1 / (Math.pow(deltaUX, 2) + Math.pow(deltaUY, 2));
+//    double l2 = (0.0 - (deltaX * deltaUX)) - (deltaY * deltaUY);
+    double l2 = - (deltaX * deltaUX) - (deltaY * deltaUY);
+    double l3 = Math.pow(r, 2) * (Math.pow(deltaUX, 2) + Math.pow(deltaUY, 2));
+    double l4 = Math.pow((deltaX * deltaUY) - (deltaY * deltaUX), 2);
+//    double l5 = l3 - l4;
+    double l5 = Math.abs(l3 - l4);
+    
+    // Menghitung waktu minimum dan maksimum
+    double max = l1 * (l2 + Math.sqrt(l5));
+    double min = l1 * (l2 - Math.sqrt(l5));
+    
+    return new Tuple<>(min, max);
+}
 
     public int getCapacityOFKnapsack(double time, int tfSpeed) {
         return (int) Math.ceil(time * tfSpeed);
