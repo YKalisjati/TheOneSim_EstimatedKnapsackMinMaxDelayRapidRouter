@@ -20,7 +20,6 @@ public class MessageDelayReport extends Report implements MessageListener {
 	public static final String HEADER =
 	    "# messageDelay  cumulativeProbability";
 	/** all message delays */
-        private String name;
 	private List<Double> delays;
 	private int nrofCreated;
 	
@@ -37,30 +36,25 @@ public class MessageDelayReport extends Report implements MessageListener {
 		write(HEADER);
 		this.delays = new ArrayList<Double>();
 		this.nrofCreated = 0;
-                this.name = new String();
 	}
 	
 	public void newMessage(Message m) {
 		if (isWarmup()) {
 			addWarmupID(m.getId());
-		} 
+		}
 		else {
 			this.nrofCreated++;
-		}this.name.concat(m.getId());
+		}
 	}
 	
 	public void messageTransferred(Message m, DTNHost from, DTNHost to, 
 			boolean firstDelivery) {
 		if (firstDelivery && !isWarmupID(m.getId())) {
 			this.delays.add(getSimTime() - m.getCreationTime());
-		}report(m.getId());
+		}
 		
 	}
 
-        public void report(String id){
-            write(id);
-        }
-        
 	@Override
 	public void done() {
 		if (delays.size() == 0) {
@@ -74,7 +68,7 @@ public class MessageDelayReport extends Report implements MessageListener {
 		
 		for (int i=0; i < delays.size(); i++) {
 			cumProb += 1.0/nrofCreated;
-			write(format(delays.get(i)) + "\t" + format(cumProb));
+			write(format(delays.get(i)) + " " + format(cumProb));
 		}
 		super.done();
 	}
